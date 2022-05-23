@@ -3,12 +3,15 @@ library(randomForest)
 library(caret)
 library(dplyr)
 library(stringr)
-
+#zaimportowanie zbioru danych
 df <- read.table(file.choose(), header = TRUE)
 
+# rozdzielenie zmiennej geo na dwie oddzielne zmienne
 
 df[c('GEO_X', 'GEO_X2')] <- str_split_fixed(df$GEO, ',', 2)
+# usuniecie zmiennej geo
 df <- subset (df, select = -GEO)
+# zmiana typow zmiennych na factor
 df$FLAG<- as.factor(df$FLAG)
 df$SECTOR <- as.factor(df$SECTOR)
 df$ACC_BEFORE <- as.factor(df$ACC_BEFORE)
@@ -27,22 +30,26 @@ df_FLAG_0<- data.frame(ID= df$ID.[df$FLAG==0],EMPLOYESS = df$EMPLOYEES[df$FLAG==
                        CREDIT=df$CREDIT[df$FLAG==0],FLAG = df$FLAG[df$FLAG==0], PWC_PRESS_INDEX = df$PWC_PRESS_INDEX[df$FLAG==0],
                        SECTOR =df$SECTOR[df$FLAG==0], WORKING_TIME =NaN,
                        GEO_X = df$GEO_X[df$FLAG==0],GEO_X2 = df$GEO_X2[df$FLAG==0])
-
+# randomforest dla upadlych firm (zmienna working_time)
 ind<-sample(2,nrow(df_FLAG_1), replace=TRUE, prob = c(0.7,0.3))
 train3 <- df_FLAG_1[ind==1,]
 test3 <- df_FLAG_1[ind==2,]
-
-rf<-randomForest(WORKING_TIME~ ., data = train3)
+# budowa lasu losowego dla zbioru testowego i zmiennej working time
+rf<-randomForest(WORKING_TIME~ EMPLOYESS+MARKETING_SPENDING+
+                 INCOME+ACC_BEFORE+
+                 FB_LIKES+AREA+PWC_EMPLOYESS+
+                 CREDIT+FLAG+PWC_PRESS_INDEX+
+                 SECTOR+
+                 GEO_X+GEO_X2, data = train3)
 p1<- predict(rf,test3)
-p2<-as.numeric(predict(rf,df_FLAG_0))
 predicted_working_time<- data.frame(p1,test3$WORKING_TIME)
 roznica <- predicted_working_time$p1-predicted_working_time$test3.WORKING_TIME
 predicted_working_time_difference<- cbind(predicted_working_time,roznica)
 summary(roznica) # Mediana = 0.34 srednia = 0.01, DOKLADNOSC
 sd(roznica) # 2.80
-summary(predicted_working_time$roznica)
-sd(predicted_working_time$roznica)
 # mean error of prediction is (delta)t = 0.30+/-2.7 
+# predykcja czasu dzialania firm, które nie upadły
+p2 <- predict(rf,df_FLAG_0)
 p2_ind <- data.frame(p2,INDEX=df_FLAG_0$ID)
 p2ordered <- data.frame(p2_ind$p2[order(p2_ind$p2)],p2_ind$INDEX[order(p2_ind$p2)])
 varImpPlot(rf)
